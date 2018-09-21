@@ -133,31 +133,29 @@ int main(void){
     fds[1].fd = _socket_fd;
     fds[1].events = POLLIN;
 
+    /* Set Sock Structure */
+    struct sockaddr_in gcAddr;
+    unsigned int fromLen = sizeof(gcAddr);
+
     /* main thread loop */
     while (1) {
         int status = poll(fds, sizeof(fds) / sizeof(fds[0]), 1000);
         if ( status > 0 ) {
-#if 0 
+ 
             if (fds[0].revents & POLLIN) {      // by Serial
                 printf(">>>> recv from serial \n");
 
                 // receive data from serial
-                // read(_serial_fd, buf, MAXBUF); 
+                 int isRead = read(_serial_fd, buf, MAXBUF); 
+				 
+				 if(!(isRead < 0)){
+					// Send MAVdata to QGroundControl UDP Socket
+					int sendUdpLen = sendto(_socket_fd, buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));					 
+				 }
 
-                // parse data for mavlink (PLEASE CHECK IT!!)
-                // mavlink_parse_char(MAVLINK_COMM_0, buf[i], &msg, &status)
-
-                // send data to UDP
-                // sendto(....)
-            }
-#endif
-            
+            }            
             
             if (fds[1].revents & POLLIN) {      // by UDP Socket
-                struct sockaddr_in   gcAddr;
-                unsigned int fromLen = sizeof(gcAddr);
-
-
                 memset(buf, 0, MAXBUF);
                 int recvLen = recvfrom(_socket_fd, (void *)buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
 
