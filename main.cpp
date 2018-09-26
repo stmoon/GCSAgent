@@ -146,19 +146,21 @@ int main(void){
                 printf(">>>> recv from serial \n");
 
                 // receive data from serial
-                 int isRead = read(_serial_fd, buf, MAXBUF); 
-				 
+                 int isRead = read(_serial_fd, buf, MAXBUF);
 				 if(!(isRead < 0)){
 					// Send MAVdata to QGroundControl UDP Socket
-					int sendUdpLen = sendto(_socket_fd, buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));					 
+					int sendUdpLen = sendto(_socket_fd, buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));					
 				 }
 
-            }            
+            }
+	    else{
+		printf(">>> NO Serial Data\n");
+	    }		
             
             if (fds[1].revents & POLLIN) {      // by UDP Socket
                 memset(buf, 0, MAXBUF);
+		printf(">>> Send Mav Data to Serial\n");
                 int recvLen = recvfrom(_socket_fd, (void *)buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
-
 
                 // pass to serial
                 int sentLen = write(_serial_fd, buf, recvLen);
