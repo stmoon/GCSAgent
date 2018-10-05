@@ -141,35 +141,57 @@ int main(void){
     while (1) {
         int status = poll(fds, sizeof(fds) / sizeof(fds[0]), 1000);
         if ( status > 0 ) {
- 
+
             if (fds[0].revents & POLLIN) {      // by Serial
                 printf(">>>> recv from serial \n");
 
                 // receive data from serial
-                 int isRead = read(_serial_fd, buf, MAXBUF);
-		 int i = 0;
-		 for(i=0;i<isRead;i++){
-			 printf("%02x ", buf[i]);
-		 }
-		 printf("\n");
-				 if(!(isRead < 0)){
-					// Send MAVdata to QGroundControl UDP Socket
-					int sendUdpLen = sendto(_socket_fd, buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));					
-				 }
+                int recvLen = read(_serial_fd, buf, MAXBUF);
+                if ( recvLen < 0 ) {
+                    printf("ERROR : cannot read data\n");
+                    continue;
+                }
+                
+                // parse data for mavlink binary
+                char strbuf[MAXBUF] = {};
+                int  pos_strbuf = 0;
+                char str[3] = {};
+                int  ps = 0;        // position of string
+                for(int i = 0 ; i < recvLen; i++ ) {
+
+                    if ( buf[i] == 0x20 ) {
+
+                        int number = (int)strtol(str, NULL, 16);
+                        strbuf[pos_strbuf++] = (char)number;
+
+                        // init string data
+                        memset(str, 0, sizeof(str));
+                        ps = 0;
+                    }
+                    else if ( buf[i] == 0x0D || buf[i] == 0x0A ) {
+                        // ignore 
+                    }
+                    else {
+                        // append data
+                        str[ps++] = buf[i];
+                    }
+                }
+
+                // Send MAVdata to QGroundControl UDP Socket
+                gcAddr.sin_family = AF_INET;
+                gcAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+                gcAddr.sin_port = htons(14550);
+                int sendUdpLen = sendto(_socket_fd, strbuf, pos_strbuf, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));					
 
             }
-	    else{
-		printf(">>> NO Serial Data\n");
-	    }		
-            
-            if (fds[1].revents & POLLIN) {      // by UDP Socket
+            else if (fds[1].revents & POLLIN) {      // by UDP Socket
                 memset(buf, 0, MAXBUF);
-		printf(">>> Send Mav Data to Serial\n");
+                printf(">>> Send Mav Data to Serial\n");
                 int recvLen = recvfrom(_socket_fd, (void *)buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
 
                 // pass to serial
                 int sentLen = write(_serial_fd, buf, recvLen);
-		write(_serial_fd, "\r\n", 2);
+                write(_serial_fd, "\r\n", 2);
 
             }
 
