@@ -151,7 +151,7 @@ int main(void){
                     printf("ERROR : cannot read data\n");
                     continue;
                 }
-                
+                /*
                 // parse data for mavlink binary
                 char strbuf[MAXBUF] = {};
                 int  pos_strbuf = 0;
@@ -176,13 +176,16 @@ int main(void){
                         str[ps++] = buf[i];
                     }
                 }
-
+		*/
                 // Send MAVdata to QGroundControl UDP Socket
+		if(buf[0] == 0xfd){
                 gcAddr.sin_family = AF_INET;
                 gcAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
                 gcAddr.sin_port = htons(14550);
-                int sendUdpLen = sendto(_socket_fd, strbuf, pos_strbuf, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));					
-
+                int sendUdpLen = sendto(_socket_fd, buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));
+		}else{
+			printf(">>> MAVLink Failure\n");
+		}
             }
             else if (fds[1].revents & POLLIN) {      // by UDP Socket
                 memset(buf, 0, MAXBUF);
