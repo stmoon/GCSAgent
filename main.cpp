@@ -64,11 +64,11 @@ int setupUDP(void)
 int setupSerial()
 {
     char *uart_name = (char*)"/dev/ttyUSB0";
-    int speed = B57600; //B1000000; //B57600; // B230400; //B57600; 
+    int speed = B57600; //B1000000; //B57600; // B230400; //B57600;
     int uart = open(uart_name, O_RDWR | O_NOCTTY | O_NDELAY  /*O_NONBLOCK*/);
     if (uart < 0) {
-	printf("FAIL: Error opening port");
-	return -1;
+	    printf("FAIL: Error opening port");
+	    return -1;
     }
 
     struct termios uart_config;
@@ -80,22 +80,22 @@ int setupSerial()
     uart_config.c_lflag = 0;
 
     if (cfsetispeed(&uart_config, speed) < 0 || cfsetospeed(&uart_config, speed) < 0 ) {
-	printf("FAIL: Error setting baudrate / termios config for cfsetispeed ");
-	return -1;
+	    printf("FAIL: Error setting baudrate / termios config for cfsetispeed ");
+	    return -1;
     }
 
     tcflush (uart, TCIFLUSH);
 
     if (tcsetattr(uart, TCSANOW, &uart_config) < 0) {
-	printf("FAIL: Error setting baudrate / termios config for tcsetattr");
-	return -1;
+	    printf("FAIL: Error setting baudrate / termios config for tcsetattr");
+	    return -1;
     }
 
     return uart;
 
 }
 
-int sendHeartbeat() 
+int sendHeartbeat()
 {
     uint8_t buf[MAXBUF];
     uint16_t len;
@@ -116,14 +116,30 @@ int sendHeartbeat()
 }
 
 int main(void){
+    uint32_t serial_recv_count = 0;
+    uint8_t sec_event = 0;
+
+    int serial_index = 0;
+    int serial_length = 0;
+    int buf_length = 0;
+
+    int rdcnt = 0;
+
+    uint8_t state_flag = 0;
+
+    uint8_t mav_ver = 2;
+
     uint8_t buf[MAXBUF];
-   
+    uint8_t soc_buf[MAXBUF];
+
+    char receive_buffer[15000];
+
     /* udp socket setup */
     _socket_fd = setupUDP();
 
     /* serial setup */
     _serial_fd = setupSerial();
-    
+
     sendHeartbeat();
 
     /* poll descriptor */
@@ -143,66 +159,41 @@ int main(void){
         if ( status > 0 ) {
 
             if (fds[0].revents & POLLIN) {      // by Serial
-                printf(">>>> recv from serial \n");
+                uint8_t serial_buf[1024];
 
-                // receive data from serial
-                int recvLen = read(_serial_fd, buf, MAXBUF);
-                if ( recvLen < 0 ) {
-                    printf("ERROR : cannot read data\n");
-                    continue;
-                }
-                /*
-                // parse data for mavlink binary
-                char strbuf[MAXBUF] = {};
-                int  pos_strbuf = 0;
-                char str[3] = {};
-                int  ps = 0;        // position of string
-                for(int i = 0 ; i < recvLen; i++ ) {
+                // Get data from Serial
+                rdcnt = read(_serial_fd, serial_buf, 1024);
 
-                    if ( buf[i] == 0x20 ) {
-
-                        int number = (int)strtol(str, NULL, 16);
-                        strbuf[pos_strbuf++] = (char)number;
-
-                        // init string data
-                        memset(str, 0, sizeof(str));
-                        ps = 0;
-                    }
-                    else if ( buf[i] == 0x0D || buf[i] == 0x0A ) {
-                        // ignore 
-                    }
-                    else {
-                        // append data
-                        str[ps++] = buf[i];
-                    }
-                }
-		*/
-                // Send MAVdata to QGroundControl UDP Socket
-		if(buf[0] == 0xfd){
+                // Setup UDP Socket
                 gcAddr.sin_family = AF_INET;
                 gcAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
                 gcAddr.sin_port = htons(14550);
-                int sendUdpLen = sendto(_socket_fd, buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));
-		}else{
-			printf(">>> MAVLink Failure\n");
-		}
-            }
+
+                // Send data to QGC through UDP
+                int sendUdpLen = sendto(_socket_fd, serial_buf, rdcnt, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));
+
+                int i = 0;
+                for(i=0;i<rdcnt;i++){
+                  printf("%02x ", serial_buf[i]);
+                }
+                printf("\n");
+                //printf("GCS <<< Mobius\n");
+              }
             else if (fds[1].revents & POLLIN) {      // by UDP Socket
-                memset(buf, 0, MAXBUF);
-                printf(">>> Send Mav Data to Serial\n");
-                int recvLen = recvfrom(_socket_fd, (void *)buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
+              memset(soc_buf, 0, MAXBUF);
 
-                // pass to serial
-                int sentLen = write(_serial_fd, buf, recvLen);
-                write(_serial_fd, "\r\n", 2);
+              // Get data from UDP(QGC)
+              int recvLen = recvfrom(_socket_fd, (void *)soc_buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
 
+              // Pass data to Serial
+              int sentLen = write(_serial_fd, soc_buf, recvLen);
+
+                printf("GCS >>> Mobius\n");
             }
-
         }
         else {
             printf(">>> send \n");
             sendHeartbeat();
         }
     }
-
 }
