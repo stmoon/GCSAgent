@@ -171,6 +171,7 @@ int main(void){
 
                 // Send data to QGC through UDP
                 int sendUdpLen = sendto(_socket_fd, serial_buf, rdcnt, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));
+                fsync(_socket_fd);
 
                 int i = 0;
                 for(i=0;i<rdcnt;i++){
@@ -185,8 +186,26 @@ int main(void){
               // Get data from UDP(QGC)
               int recvLen = recvfrom(_socket_fd, (void *)soc_buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
 
+
+              // TEST: check mavlink data
+              uint8_t msgReceived = false;
+              mavlink_message_t message;
+              mavlink_status_t status;
+              for ( int i = 0 ; i < recvLen ; i++ ) {
+                msgReceived = mavlink_parse_char(MAVLINK_COMM_1, soc_buf[i], &message, &status);
+                if ( msgReceived ) {
+                    printf("yes \n");
+                    // check heartbeat
+                  
+                    // check arm message
+                }
+              }
+
+        
+
               // Pass data to Serial
               int sentLen = write(_serial_fd, soc_buf, recvLen);
+              fsync(_serial_fd);
 
                 printf("GCS >>> Mobius\n");
             }
