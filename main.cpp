@@ -24,6 +24,8 @@
 
 #define MAXBUF		    (1024)
 
+#define DEBUG           
+
 int _serial_fd = 0;
 int _socket_fd = 0;
 
@@ -174,6 +176,7 @@ int main(void){
                 fsync(_socket_fd);
 
 
+#ifdef DEBUG
                 // TEST: check mavlink data
                 uint8_t msgReceived = false;
                 mavlink_message_t message;
@@ -181,15 +184,10 @@ int main(void){
                 for ( int i = 0 ; i < rdcnt ; i++ ) {
                     msgReceived = mavlink_parse_char(MAVLINK_COMM_2, serial_buf[i], &message, &status);
                     if ( msgReceived ) {
-                        printf("MSG ID :  %d\n", message.msgid);
-                        if(message.msgid == 77){
-                            printf("**********ACK********\n");
-                        }
-                        // check heartbeat
-
-                        // check arm message
+                        printf("MOBIUS >> GCS : %d\n", message.msgid);
                     }
                 }
+#endif
 
             }
             else if (fds[1].revents & POLLIN) {      // by UDP Socket
@@ -198,7 +196,7 @@ int main(void){
                 // Get data from UDP(QGC)
                 int recvLen = recvfrom(_socket_fd, (void *)soc_buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
 
-
+#ifdef DEBUG
                 // TEST: check mavlink data
                 uint8_t msgReceived = false;
                 mavlink_message_t message;
@@ -206,22 +204,14 @@ int main(void){
                 for ( int i = 0 ; i < recvLen ; i++ ) {
                     msgReceived = mavlink_parse_char(MAVLINK_COMM_1, soc_buf[i], &message, &status);
                     if ( msgReceived ) {
-                        if(message.msgid ==  76){
-                            printf("*********Send Arm********\n");
-                        }
-                        // check heartbeat
-
-                        // check arm message
+                        printf("GCS >> MOBIUS : %d\n", message.msgid);
                     }
                 }
-
-
+#endif
 
                 // Pass data to Serial
                 int sentLen = write(_serial_fd, soc_buf, recvLen);
                 fsync(_serial_fd);
-
-                printf("GCS >>> Mobius\n");
             }
         }
         else {
