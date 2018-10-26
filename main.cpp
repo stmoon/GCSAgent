@@ -173,39 +173,53 @@ int main(void){
                 int sendUdpLen = sendto(_socket_fd, serial_buf, rdcnt, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));
                 fsync(_socket_fd);
 
-                int i = 0;
-                for(i=0;i<rdcnt;i++){
-                  printf("%02x ", serial_buf[i]);
+
+                // TEST: check mavlink data
+                uint8_t msgReceived = false;
+                mavlink_message_t message;
+                mavlink_status_t status;
+                for ( int i = 0 ; i < rdcnt ; i++ ) {
+                    msgReceived = mavlink_parse_char(MAVLINK_COMM_2, serial_buf[i], &message, &status);
+                    if ( msgReceived ) {
+                        printf("MSG ID :  %d\n", message.msgid);
+                        if(message.msgid == 77){
+                            printf("**********ACK********\n");
+                        }
+                        // check heartbeat
+
+                        // check arm message
+                    }
                 }
-                printf("\n");
-                //printf("GCS <<< Mobius\n");
-              }
+
+            }
             else if (fds[1].revents & POLLIN) {      // by UDP Socket
-              memset(soc_buf, 0, MAXBUF);
+                memset(soc_buf, 0, MAXBUF);
 
-              // Get data from UDP(QGC)
-              int recvLen = recvfrom(_socket_fd, (void *)soc_buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
+                // Get data from UDP(QGC)
+                int recvLen = recvfrom(_socket_fd, (void *)soc_buf, MAXBUF, 0, (struct sockaddr *)&gcAddr, &fromLen);
 
 
-              // TEST: check mavlink data
-              uint8_t msgReceived = false;
-              mavlink_message_t message;
-              mavlink_status_t status;
-              for ( int i = 0 ; i < recvLen ; i++ ) {
-                msgReceived = mavlink_parse_char(MAVLINK_COMM_1, soc_buf[i], &message, &status);
-                if ( msgReceived ) {
-                    printf("yes \n");
-                    // check heartbeat
-                  
-                    // check arm message
+                // TEST: check mavlink data
+                uint8_t msgReceived = false;
+                mavlink_message_t message;
+                mavlink_status_t status;
+                for ( int i = 0 ; i < recvLen ; i++ ) {
+                    msgReceived = mavlink_parse_char(MAVLINK_COMM_1, soc_buf[i], &message, &status);
+                    if ( msgReceived ) {
+                        if(message.msgid ==  76){
+                            printf("*********Send Arm********\n");
+                        }
+                        // check heartbeat
+
+                        // check arm message
+                    }
                 }
-              }
 
-        
 
-              // Pass data to Serial
-              int sentLen = write(_serial_fd, soc_buf, recvLen);
-              fsync(_serial_fd);
+
+                // Pass data to Serial
+                int sentLen = write(_serial_fd, soc_buf, recvLen);
+                fsync(_serial_fd);
 
                 printf("GCS >>> Mobius\n");
             }
