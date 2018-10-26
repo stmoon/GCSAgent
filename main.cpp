@@ -134,8 +134,6 @@ int main(void){
     uint8_t buf[MAXBUF];
     uint8_t soc_buf[MAXBUF];
 
-    char receive_buffer[15000];
-
     /* udp socket setup */
     _socket_fd = setupUDP();
 
@@ -161,7 +159,10 @@ int main(void){
         if ( status > 0 ) {
 
             if (fds[0].revents & POLLIN) {      // by Serial
-                uint8_t serial_buf[1024];
+
+                // TODO : duplciated buffer : please remove it and use buf
+                uint8_t serial_buf[MAXBUF];
+                memset(serial_buf, 0, MAXBUF);
 
                 // Get data from Serial
                 rdcnt = read(_serial_fd, serial_buf, 1024);
@@ -174,7 +175,6 @@ int main(void){
                 // Send data to QGC through UDP
                 int sendUdpLen = sendto(_socket_fd, serial_buf, rdcnt, 0, (struct sockaddr *)&gcAddr, sizeof(struct sockaddr_in));
                 fsync(_socket_fd);
-
 
 #ifdef DEBUG
                 // TEST: check mavlink data
@@ -191,6 +191,9 @@ int main(void){
 
             }
             else if (fds[1].revents & POLLIN) {      // by UDP Socket
+
+                // TODO : duplciated buffer : please remove it and use buf
+                uint8_t soc_buf[MAXBUF];
                 memset(soc_buf, 0, MAXBUF);
 
                 // Get data from UDP(QGC)
