@@ -207,7 +207,10 @@ int main(void){
                 for ( int i = 0 ; i < recvLen ; i++ ) {
                     msgReceived = mavlink_parse_char(MAVLINK_COMM_1, soc_buf[i], &message, &status);
                     if ( msgReceived ) {
-                        printf("GCS >> MOBIUS : %d\n", message.msgid);
+                        printf("GCS >> MOBIUS : %d (%0x)\n", message.msgid, message.magic);
+                        if(message.msgid == 76){
+                            printf(">>>>> Send Command : Arm/Disarm\n");
+}
                     }
                 }
 #endif
